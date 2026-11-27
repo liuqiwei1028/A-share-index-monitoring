@@ -1,0 +1,9 @@
+{
+  "_说明": "复制成 config/llm.json 后填写。也可以改用环境变量 LLM_BASE_URL / LLM_API_KEY / LLM_MODEL。",
+  "baseUrl": "https://api.deepseek.com",
+  "apiKey": "sk-你的密钥",
+  "model": "deepseek-chat",
+  "temperature": 0.3,
+  "maxTokens": 1200,
+  "timeoutMs": 60000
+}

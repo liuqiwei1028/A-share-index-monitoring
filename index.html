@@ -58,7 +58,9 @@ section.card{background:var(--card);border-radius:12px;padding:20px 22px 14px;ma
 .etf-tb td b{font-variant-numeric:tabular-nums}
 .etf-tb .hot{color:var(--up);font-weight:600}
 .up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--sub)}
-.rp-sum{font-size:14px;font-weight:600;line-height:1.75;margin:6px 0 10px;color:#1f2430}
+.rp-ai{background:#f5f9ff;border-left:3px solid var(--accent);border-radius:8px;padding:12px 14px;margin:10px 0}
+.rp-ai-hd{font-size:11.5px;color:var(--accent);font-weight:600;margin-bottom:5px}
+.rp-ai p{font-size:13px;line-height:1.85;color:#2a3140;white-space:pre-wrap}.rp-sum{font-size:14px;font-weight:600;line-height:1.75;margin:6px 0 10px;color:#1f2430}
 .rp-sec{margin:12px 0 0}
 .rp-sec h3{font-size:12.5px;color:var(--accent);margin-bottom:3px;font-weight:600}
 .rp-sec p{font-size:12.8px;color:#3a4150;line-height:1.8}
@@ -143,6 +145,7 @@ footer{text-align:center;color:#9aa1ad;font-size:11.5px;padding:8px 0 40px}
       <span class="now" id="rpDate">—</span>
     </div>
     <div class="rp-sum" id="rpSummary"></div>
+    <div class="rp-ai" id="rpAi" style="display:none"><div class="rp-ai-hd">AI 分析 <span id="rpAiModel"></span></div><p id="rpAiText"></p></div>
     <div class="mini" id="rpMini"></div>
     <div id="rpSections"></div>
     <table class="etf-tb" id="rpHold" style="margin-top:12px"></table>
@@ -578,7 +581,11 @@ footer{text-align:center;color:#9aa1ad;font-size:11.5px;padding:8px 0 40px}
       miniItem("仓位参考", R.position.pos + "%"),
       miniItem("走势", R.trend.title)
     ].join("");
-    $("rpSections").innerHTML = (R.sections || []).map(function(s){
+    if (R.ai && R.ai.text) {
+      $("rpAi").style.display = "";
+      $("rpAiModel").textContent = "· " + (R.ai.model || "");
+      $("rpAiText").textContent = R.ai.text;
+    }    $("rpSections").innerHTML = (R.sections || []).map(function(s){
       return '<div class="rp-sec"><h3>' + s.title + '</h3><p>' + s.body + '</p></div>';
     }).join("");
     if (R.holdings && R.holdings.length) {

@@ -143,6 +143,46 @@ tar czf backup-$(date +%F).tar.gz data/
 
 **升级站点**：替换 `index.html`、`vendor/`、`scripts/`，然后 `docker compose restart web`；数据管线改动则要 `docker compose up -d --build updater`。
 
+## 六点五、接入大模型（可选）
+
+报告默认由规则引擎生成，**不依赖任何外部服务**。想让分析更有可读性，可以接一个大模型：
+只要服务兼容 OpenAI 的 `/chat/completions` 协议即可。
+
+### 配置
+
+```bash
+cd /opt/etf-monitor
+cp config/llm.example.json config/llm.json
+vi config/llm.json          # 填 baseUrl / apiKey / model
+```
+
+`config/llm.json` 已在 `.gitignore` 里，不会被提交。
+
+也可以用环境变量（适合写进 crontab）：
+
+```cron
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+LLM_API_KEY=sk-xxxx
+```
+
+### 常见服务
+
+| 服务 | baseUrl | 参考模型 | 成本 |
+|---|---|---|---|
+| DeepSeek | `https://api.deepseek.com` | `deepseek-chat` | 约 1 元 / 百万 token |
+| 阿里百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | 有免费额度 |
+| 月之暗面 | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | 按量计费 |
+| 智谱 | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | 有免费档 |
+| 本地 Ollama | `http://127.0.0.1:11434/v1` | `qwen2.5:7b` | 自建，需 8G+ 显存/内存 |
+
+**不建议在 1 核 1G 的 VPS 上跑本地模型**——7B 量化模型至少要 8G 内存，推理速度也撑不住。
+
+### 行为
+
+- 每天 16:05 生成报告时，如果配置了 LLM，会额外调用一次（约 2500 token）
+- **调用失败不会影响报告**：自动降级为规则引擎的版本，日志里会记录原因
+- 页面上的 AI 段带 `AI 分析 · 模型名` 标识，规则引擎的段落仍然保留，两者可对照
 ## 七、不用 Docker 的部署方式（挂到已有站点子路径）
 
 适用于服务器上已有 Nginx + HTTPS 站点的情况，直接把指标挂到 `https://你的域名/etf/` 下，

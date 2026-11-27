@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import dns from "node:dns";
 import { fileURLToPath } from "node:url";
+import { chat, llmConfigured } from "./llm.mjs";
 
 dns.setDefaultResultOrder("ipv4first");
 process.env.NO_PROXY = "*";
@@ -251,6 +252,49 @@ async function main() {
       `沪深300 期权 PCR ${pcr.volPcr}、股债利差 ${erp.erp}%（分位 ${erpPct.toFixed(0)}%）。`;
   }
 
+  // —— 可选：调用大模型补充分析（未配置或调用失败时静默降级）
+  if (llmConfigured()) {
+    const facts = {
+      日期: date, 市场状态: `${regime} · ${amtState}`,
+      沪深300: `${erp.close}（${hs300Pct >= 0 ? "+" : ""}${hs300Pct.toFixed(2)}%）`,
+      在200日线上方: aboveMa200,
+      涨跌家数: `涨 ${B.up} / 平 ${B.flat} / 跌 ${B.down}`,
+      红盘率: `${redRate.toFixed(1)}%`,
+      涨停跌停: `${B.lu} / ${B.ld}`,
+      成交额: `${amtToday.toFixed(0)} 亿（前5日均值的 ${amtRatio.toFixed(2)} 倍）`,
+      TRIN: `${trin.trin}（分位 ${trinPct.toFixed(0)}%）`,
+      MCL: `${mcl.mcl}（分位 ${mclPct.toFixed(0)}%）`,
+      期权PCR: `沪深300 ${pcr.volPcr}，上证50 ${ho.volPcr}`,
+      股债利差: `${erp.erp}%（分位 ${erpPct.toFixed(0)}%，PE ${erp.pe}，10Y国债 ${erp.y10}%）`,
+      创业板指: `${gemPct.toFixed(2)}%（相对沪深300 ${gemRel >= 0 ? "+" : ""}${gemRel.toFixed(2)}pp）`,
+      科创50: `${starPct.toFixed(2)}%（相对 ${starRel >= 0 ? "+" : ""}${starRel.toFixed(2)}pp）`,
+      创业板相对红利: `${ratioNow.toFixed(3)}（历史 ${ratioPct.toFixed(0)}% 分位）`,
+      创业板ETF份额: isFinite(gemShareChg) ? `${gemShareNow.toFixed(0)} 亿份，20日 ${gemShareChg >= 0 ? "+" : ""}${gemShareChg.toFixed(0)} 亿份` : "无",
+      持仓: holdings.map((h) => `${h.name} ${h.pct >= 0 ? "+" : ""}${h.pct.toFixed(2)}%（5日 ${h.d5 >= 0 ? "+" : ""}${h.d5.toFixed(1)}%）`),
+      规则引擎判断: trendTitle,
+      规则仓位参考: `${pos.toFixed(0)}%`,
+    };
+    const sys = "你是一名A股量化策略分析师。只根据用户给出的数字做判断，不得编造或推算任何未提供的数值。" +
+      "语言简洁、直接给结论，不要用「综上所述」「值得注意的是」这类套话，不要写免责声明。";
+    const user = [
+      "以下是今日收盘的量化指标与持仓数据（JSON）：",
+      JSON.stringify(facts, null, 1),
+      "",
+      "请输出 4 段，每段 60-100 字，不要小标题：",
+      "1. 一句话结论：今天是什么状态，对后市怎么判断。",
+      "2. 结构：创业板/科创板相对强弱说明什么，成长风格处于什么位置。",
+      "3. 持仓：CPO 光模块三只的表现与指数对比，给出持有/减仓/观察的具体倾向。",
+      "4. 风险：接下来 1-2 个交易日最需要盯的 1-2 个指标，以及触发什么条件就该改变判断。",
+    ].join("\n");
+
+    const r = await chat({ system: sys, user });
+    if (r.ok) {
+      report.ai = { model: r.model, text: r.text };
+      log(`AI 分析已生成（${r.model}）`);
+    } else {
+      log(`AI 分析跳过：${r.reason}`);
+    }
+  }
   fs.writeFileSync(path.join(DATA, "report.json"), JSON.stringify(report, null, 1), "utf8");
   fs.writeFileSync(path.join(DATA, "report.js"), "window.REPORT=" + JSON.stringify(report) + ";", "utf8");
 
@@ -275,6 +319,7 @@ async function main() {
     "",
     `**仓位参考：${pos.toFixed(0)}%**（综合分 ${score.toFixed(0)}${capped ? "，被 200 日线闸门压到 60%" : ""}）`,
     "",
+    ...(report.ai ? ["## 五、AI 分析", "", report.ai.text, ""] : []),
     "---",
     "由规则引擎生成，阈值可在 scripts/report.mjs 中调整。",
   ].join("\n");
