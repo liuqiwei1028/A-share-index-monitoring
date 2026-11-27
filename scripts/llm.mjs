@@ -40,7 +40,7 @@ function loadConfig() {
     apiKey,
     model,
     temperature: file.temperature ?? 0.3,
-    maxTokens: file.maxTokens ?? 1200,
+    maxTokens: file.maxTokens ?? 2048,
     timeoutMs: file.timeoutMs ?? 60000,
   };
 }
@@ -84,14 +84,30 @@ export async function chat({ system, user }) {
         throw new Error(`HTTP ${res.status} ${t.slice(0, 200)}`);
       }
       const j = await res.json();
-      const text = j?.choices?.[0]?.message?.content?.trim();
-      if (!text) throw new Error("返回内容为空");
-      return { ok: true, text, model: cfg.model, usage: j?.usage || null };
+      const choice = j?.choices?.[0] || {};
+      const msg = choice.message || {};
+      // 推理模型（deepseek-reasoner 等）正文在 content，思考过程在 reasoning_content；
+      // 若 content 为空但 reasoning_content 有内容，说明思考把额度吃完了
+      const text = String(msg.content || "").trim();
+      if (!text) {
+        const fr = choice.finish_reason || "?";
+        const usage = JSON.stringify(j?.usage || {});
+        // 推理模型：思考过程写满了额度，正文一个字没留。这种情况不能拿思考内容顶替
+        const thinking = String(msg.reasoning_content || msg.reasoning || "").trim();
+        const err = new Error(
+          thinking
+            ? `模型只返回了思考过程、正文为空（finish_reason=${fr}）——把 maxTokens 调到 4000 以上，或换成非推理模型（如 deepseek-chat）`
+            : `返回内容为空（finish_reason=${fr}，usage=${usage}）`
+        );
+        err.detail = JSON.stringify(j).slice(0, 600);
+        throw err;
+      }
+      return { ok: true, text, model: cfg.model, usage: j?.usage || null, finishReason: choice.finish_reason };
     } catch (e) {
       clearTimeout(timer);
       lastErr = e;
       if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
     }
   }
-  return { ok: false, reason: lastErr?.message || "调用失败" };
+  return { ok: false, reason: (lastErr?.message || "调用失败") + (lastErr?.detail ? "\n原始响应：" + lastErr.detail : "") };
 }
