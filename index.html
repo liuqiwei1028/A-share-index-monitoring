@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -58,6 +58,10 @@ section.card{background:var(--card);border-radius:12px;padding:20px 22px 14px;ma
 .etf-tb td b{font-variant-numeric:tabular-nums}
 .etf-tb .hot{color:var(--up);font-weight:600}
 .up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--sub)}
+.rp-sum{font-size:14px;font-weight:600;line-height:1.75;margin:6px 0 10px;color:#1f2430}
+.rp-sec{margin:12px 0 0}
+.rp-sec h3{font-size:12.5px;color:var(--accent);margin-bottom:3px;font-weight:600}
+.rp-sec p{font-size:12.8px;color:#3a4150;line-height:1.8}
 .macro-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:4px}
 .m-title{font-size:12px;color:var(--sub);margin-bottom:2px}
 .m-title b{color:var(--ink);font-size:13.5px;font-variant-numeric:tabular-nums;margin-left:4px}
@@ -132,6 +136,17 @@ footer{text-align:center;color:#9aa1ad;font-size:11.5px;padding:8px 0 40px}
       <div class="bar"><i id="k6b" style="background:var(--warm)"></i></div>
     </div>
   </div>
+
+  <section class="card" id="reportCard" style="display:none">
+    <div class="card-hd">
+      <h2>每日复盘</h2><span class="idx">自动生成</span>
+      <span class="now" id="rpDate">—</span>
+    </div>
+    <div class="rp-sum" id="rpSummary"></div>
+    <div class="mini" id="rpMini"></div>
+    <div id="rpSections"></div>
+    <table class="etf-tb" id="rpHold" style="margin-top:12px"></table>
+  </section>
 
   <div class="toolbar">
     <div class="seg" id="seg">
@@ -310,6 +325,7 @@ footer{text-align:center;color:#9aa1ad;font-size:11.5px;padding:8px 0 40px}
 </div>
 
 <script src="data/indicators.js"></script>
+<script src="data/report.js"></script>
 <script>
 (function(){
   "use strict";
@@ -546,6 +562,38 @@ footer{text-align:center;color:#9aa1ad;font-size:11.5px;padding:8px 0 40px}
     miniItem("上涨成交额占比", fmt(upAmtShareNow, 1) + "%")
   ].join("");
 
+  /* ---------- 每日复盘 ---------- */
+  (function(){
+    var R = window.REPORT;
+    if (!R) return;
+    var card = document.getElementById("reportCard");
+    if (!card) return;
+    card.style.display = "";
+    $("rpDate").textContent = R.date;
+    $("rpSummary").textContent = R.summary;
+    $("rpMini").innerHTML = [
+      miniItem("状态", R.regime + " · " + R.amtState),
+      miniItem("红盘率", fmt(R.market.redRate, 0) + "%"),
+      miniItem("涨停/跌停", R.market.lu + " / " + R.market.ld),
+      miniItem("仓位参考", R.position.pos + "%"),
+      miniItem("走势", R.trend.title)
+    ].join("");
+    $("rpSections").innerHTML = (R.sections || []).map(function(s){
+      return '<div class="rp-sec"><h3>' + s.title + '</h3><p>' + s.body + '</p></div>';
+    }).join("");
+    if (R.holdings && R.holdings.length) {
+      var rows = R.holdings.map(function(h){
+        var c1 = h.pct > 0 ? "up" : (h.pct < 0 ? "down" : "flat");
+        var c2 = h.rel > 0 ? "up" : (h.rel < 0 ? "down" : "flat");
+        return "<tr><td>" + h.name + " <span style='color:#9aa1ad'>" + h.code + "</span></td>" +
+          "<td class='" + c1 + "'>" + (h.pct >= 0 ? "+" : "") + h.pct.toFixed(2) + "%</td>" +
+          "<td>" + (h.d5 >= 0 ? "+" : "") + h.d5.toFixed(2) + "%</td>" +
+          "<td>" + (h.d20 >= 0 ? "+" : "") + h.d20.toFixed(2) + "%</td>" +
+          "<td class='" + c2 + "'>" + (h.rel >= 0 ? "+" : "") + h.rel.toFixed(2) + "pp</td></tr>";
+      }).join("");
+      $("rpHold").innerHTML = "<thead><tr><th>持仓</th><th>今日</th><th>5日</th><th>20日</th><th>相对创业板</th></tr></thead><tbody>" + rows + "</tbody>";
+    }
+  })();
   /* ---------- 图表 ---------- */
   var AX = {
     axisLine: { lineStyle: { color: "#d9dee7" } },

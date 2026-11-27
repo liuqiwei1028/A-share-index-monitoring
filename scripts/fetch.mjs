@@ -1,4 +1,4 @@
-﻿import { fileURLToPath } from "node:url";
+import { fileURLToPath } from "node:url";
 /**
  * A股指标监测 · 数据管道
  *
@@ -840,6 +840,12 @@ async function main() {
   let universe = await fetchSnapshot();
   log(`全A快照 ${universe.length} 只`);
   if (limit > 0) { universe = universe.slice(0, limit); log(`  [测试模式] 仅取前 ${universe.length} 只`); }
+
+  // 盘前/接口异常时快照可能为空或极少，此时写入会污染当日数据
+  if (universe.length < 3000) {
+    log(`全A快照仅 ${universe.length} 只，疑似非交易时段或接口异常，本次跳过写入`);
+    return;
+  }
 
   const outFile = path.join(DATA_DIR, "indicators.json");
   const prev = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, "utf8")) : null;

@@ -14,3 +14,6 @@ CRON_TZ=Asia/Shanghai
 
 # 工作日 21:00 官方 PE 回填
 0  21 * * 1-5 cd /var/www/boxtool/etf && /usr/bin/node scripts/fetch.mjs --daily >/dev/null 2>>data/cron.err
+
+# 工作日 16:05 生成每日复盘（依赖 16:00 的数据）
+5  16 * * 1-5 cd /var/www/boxtool/etf && /usr/bin/node scripts/report.mjs >/dev/null 2>>data/cron.err
