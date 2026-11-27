@@ -1,0 +1,16 @@
+﻿# 不用 Docker 时的系统 crontab（root 用户）
+# 安装：crontab -e 后粘贴，或 crontab deploy/cron-bare.txt
+#
+# CRON_TZ 让时间按北京时间走，不依赖系统时区（Debian/Ubuntu 的 cron 支持）
+# 注意 node 路径：先 which node 确认。同一台机器上可能同时有 /usr/bin/node(v18)
+# 和 /usr/local/bin/node(v26)，cron 的 PATH 很短，必须写绝对路径，且要指向 20.11 以上的那个。
+CRON_TZ=Asia/Shanghai
+
+# 工作日 14:30 盘中前瞻
+30 14 * * 1-5 cd /var/www/boxtool/etf && /usr/bin/node scripts/intraday.mjs >/dev/null 2>>data/cron.err
+
+# 工作日 16:00 收盘数据
+0  16 * * 1-5 cd /var/www/boxtool/etf && /usr/bin/node scripts/fetch.mjs --daily >/dev/null 2>>data/cron.err
+
+# 工作日 21:00 官方 PE 回填
+0  21 * * 1-5 cd /var/www/boxtool/etf && /usr/bin/node scripts/fetch.mjs --daily >/dev/null 2>>data/cron.err

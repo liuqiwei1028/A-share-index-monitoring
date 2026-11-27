@@ -1,0 +1,8 @@
+# 分钟 小时 日 月 周   命令
+# 时区由容器 TZ=Asia/Shanghai 保证
+# 脚本自己会把日志写到 /app/data/*.log，这里只把崩溃信息落到 cron.err
+30 14 * * 1-5 cd /app && node scripts/intraday.mjs >/dev/null 2>>/app/data/cron.err
+0  16 * * 1-5 cd /app && node scripts/fetch.mjs --daily >/dev/null 2>>/app/data/cron.err
+0  21 * * 1-5 cd /app && node scripts/fetch.mjs --daily >/dev/null 2>>/app/data/cron.err
+
+# 周一到周五；节假日由脚本自行判断（以沪深300 实时行情日期为准）并跳过

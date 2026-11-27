@@ -1,0 +1,20 @@
+# ---- 运行时数据：每台机器各自生成，不进仓库 ----
+# 服务器每天 16:00 会改写这些文件，纳入版本控制必然冲突
+data/
+
+# ---- 本地临时产物 ----
+preview.png
+_*.png
+*.tar.gz
+*.zip
+
+# ---- Windows 专用启动脚本（内含本机 node 绝对路径）----
+update.cmd
+intraday.cmd
+
+# ---- 系统与依赖 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+node_modules/
+*.log

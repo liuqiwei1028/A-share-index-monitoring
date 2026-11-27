@@ -1,0 +1,12 @@
+# 全仓库统一用 LF：服务器是 Linux，CRLF 会让 .sh 报 "bad interpreter"、
+# 让 crontab 无法解析
+* text=auto eol=lf
+
+# 二进制文件不做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

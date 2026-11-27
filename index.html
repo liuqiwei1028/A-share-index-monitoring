@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股指标监测</title>
+<script src="vendor/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --ink:#14171f; --sub:#6b7280; --line:#e6e9ef;
+  --up:#e0282e; --down:#0a9d58; --accent:#1e5eff; --warm:#f97316; --calm:#0ea5e9; --violet:#7c3aed;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+  font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+header{background:linear-gradient(135deg,#111b33 0%,#1e5eff 130%);color:#fff;padding:26px 0 22px;margin-bottom:22px}
+.hd{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+h1{font-size:21px;font-weight:700;letter-spacing:.3px}
+.sub{font-size:12.5px;opacity:.82;margin-top:6px;max-width:660px}
+.asof{text-align:right;font-size:12px;opacity:.9}
+.asof .d{font-size:20px;font-weight:600;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+.asof .t{margin-top:2px;opacity:.78}
+
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.kpi{background:var(--card);border-radius:12px;padding:15px 17px 13px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+.k-label{font-size:12px;color:var(--sub);letter-spacing:.2px}
+.k-val{font-size:25px;font-weight:650;line-height:1.25;margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.k-val small{font-size:12.5px;font-weight:500;color:var(--sub);margin-left:3px;letter-spacing:0}
+.k-sub{font-size:11.5px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:4px;background:#eef0f4;border-radius:3px;margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:3px;background:var(--accent);transition:width .5s ease}
+
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap}
+.seg{display:inline-flex;background:#e9ecf2;border-radius:9px;padding:3px}
+.seg button{border:0;background:transparent;color:#4b5563;font-size:12.5px;padding:5px 14px;border-radius:7px;cursor:pointer;font-family:inherit}
+.seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.1)}
+.hint{font-size:11.5px;color:var(--sub)}
+
+section.card{background:var(--card);border-radius:12px;padding:20px 22px 14px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+.card-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.card-hd h2{font-size:16px;font-weight:650}
+.card-hd .idx{font-size:11.5px;color:var(--accent);background:#eef4ff;border-radius:4px;padding:1px 7px}
+.card-hd .now{margin-left:auto;font-size:12.5px;color:var(--sub)}
+.card-hd .now b{color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums}
+.desc{font-size:12.5px;color:var(--sub);margin:6px 0 8px;line-height:1.7}
+.desc code{background:#f1f3f7;padding:1px 5px;border-radius:4px;font-size:11.5px;color:#374151}
+.chart{height:320px;width:100%}
+.mini{display:flex;gap:22px;flex-wrap:wrap;margin:2px 0 8px;font-size:12.5px;color:var(--ink)}
+.mini span{white-space:nowrap}
+.mini i{font-style:normal;color:var(--sub);margin-right:5px}
+.mini b{font-weight:600;font-variant-numeric:tabular-nums}
+.etf-tb{width:100%;border-collapse:collapse;font-size:12.5px;margin:2px 0 10px}
+.etf-tb th,.etf-tb td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.etf-tb th{color:var(--sub);font-weight:500;background:#f8f9fb;font-size:11.5px}
+.etf-tb th:first-child,.etf-tb td:first-child{text-align:left}
+.etf-tb td b{font-variant-numeric:tabular-nums}
+.etf-tb .hot{color:var(--up);font-weight:600}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--sub)}
+.macro-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:4px}
+.m-title{font-size:12px;color:var(--sub);margin-bottom:2px}
+.m-title b{color:var(--ink);font-size:13.5px;font-variant-numeric:tabular-nums;margin-left:4px}
+@media(max-width:860px){.macro-grid{grid-template-columns:1fr}}
+
+.note{background:#fffdf7;border-left:3px solid #e8b84b;border-radius:8px;padding:14px 16px;font-size:12.5px;color:#5b5a52;line-height:1.8}
+.note b{color:#8a6a12;font-weight:600}
+.rules{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.rules th,.rules td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+.rules th{background:#f7f8fa;color:#374151;font-weight:600;white-space:nowrap}
+.rules td:first-child{white-space:nowrap;color:#374151}
+footer{text-align:center;color:#9aa1ad;font-size:11.5px;padding:8px 0 40px}
+
+@media(max-width:860px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .asof{text-align:left}
+  .chart{height:290px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hd">
+    <div>
+      <h1>A股指标监测</h1>
+      <p class="sub">TRIN 宽度 · MCL 广度动能 · 股指期权 PCR · 股债利差 估值 · 沪深300ETF 资金占比 —— 用于总仓位判断，不产生个股信号</p>
+    </div>
+    <div class="asof">
+      <div class="d" id="tradeDate">—</div>
+      <div class="t">沪深300 <b id="idxClose">—</b> · 更新 <span id="genAt">—</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="kpis">
+    <div class="kpi">
+      <div class="k-label">TRIN（当日）</div>
+      <div class="k-val" id="k1v">—</div>
+      <div class="k-sub" id="k1s">—</div>
+      <div class="bar"><i id="k1b"></i></div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">MCL 麦克莱伦</div>
+      <div class="k-val" id="k2v">—</div>
+      <div class="k-sub" id="k2s">—</div>
+      <div class="bar"><i id="k2b" style="background:var(--violet)"></i></div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">股指期权 PCR（成交量）</div>
+      <div class="k-val" id="k3v">—</div>
+      <div class="k-sub" id="k3s">—</div>
+      <div class="bar"><i id="k3b" style="background:var(--calm)"></i></div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">股债利差</div>
+      <div class="k-val" id="k4v">—</div>
+      <div class="k-sub" id="k4s">—</div>
+      <div class="bar"><i id="k4b" style="background:var(--warm)"></i></div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">四只300ETF规模占比</div>
+      <div class="k-val" id="k5v">—</div>
+      <div class="k-sub" id="k5s">—</div>
+      <div class="bar"><i id="k5b"></i></div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">仓位参考</div>
+      <div class="k-val" id="k6v">—</div>
+      <div class="k-sub" id="k6s">—</div>
+      <div class="bar"><i id="k6b" style="background:var(--warm)"></i></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="seg" id="seg">
+      <button data-r="1y">近1年</button>
+      <button data-r="3y" class="on">近3年</button>
+      <button data-r="all">全部</button>
+    </div>
+    <div class="hint">分位与仓位按全样本计算，不随时间范围变化</div>
+  </div>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>TRIN 人气指标</h2><span class="idx">指标 1</span>
+      <span class="now">当前 <b id="n1">—</b></span>
+    </div>
+    <div class="desc">
+      <code>(上涨家数 ÷ (平盘家数 + 下跌家数)) ÷ (上涨股成交额 ÷ 下跌股成交额)</code>
+      。数值越低，说明上涨股吸纳的成交额相对越多、市场越亢奋；越高说明资金没有向上涨股集中。图中虚线为当前区间的 80%/20% 分位。
+    </div>
+    <div class="mini" id="trinMini"></div>
+    <div class="chart" id="c1"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>MCL 麦克莱伦振荡指标</h2><span class="idx">指标 2</span>
+      <span class="now">当前 <b id="n2">—</b></span>
+    </div>
+    <div class="desc">
+      <code>EMA19(涨跌家数差) − EMA39(涨跌家数差)</code>
+      。衡量市场广度是「在加速扩散」还是「在收敛」，上穿零轴代表涨势开始铺开，下穿代表跌势扩散。它是动能不能持续性指标，不是超买超卖指标。
+    </div>
+    <div class="chart" id="c2"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>股指期权 PCR</h2><span class="idx">指标 3</span>
+      <span class="now">当前 <b id="n3">—</b></span>
+    </div>
+    <div class="desc">
+      沪深300股指期权（IO）认沽 ÷ 认购，另附上证50股指期权（HO）的 PCR 做对照。两者同在沪市、机制相同。成交量 PCR 反映当日对冲与投机需求，持仓量 PCR 反映中期头寸结构。
+      虚线为成交量 PCR 的滚动 ±2σ 轨道（120 日窗口），突破上轨说明买保护的力度异常，往往是短期恐慌的极值。
+    </div>
+    <div class="chart" id="c3"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>市场宽度</h2><span class="idx">指标 4</span>
+      <span class="now" id="n6">—</span>
+    </div>
+    <div class="desc">
+      红盘率 = 涨家数 ÷ 全市场家数；P20 / P60 / P250 = 收盘价站上对应均线的家数 ÷ 当日有足够历史数据的家数。
+      三条线依次走低，说明行情由「普涨」退化为「少数股票撑着指数」。粗线为 10 日均线，浅色细线是当日实际值。
+      涨跌停按板块阈值判定（主板 ±10%、双创 ±20%）。
+    </div>
+    <div class="mini" id="mini"></div>
+    <div class="chart" id="c6" style="height:300px"></div>
+    <div class="chart" id="c7" style="height:200px"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>股债利差</h2><span class="idx">指标 5</span>
+      <span class="now">当前 <b id="n4">—</b></span>
+    </div>
+    <div class="desc">
+      沪深300 盈利收益率（1 ÷ PE）减去 10 年期国债收益率。越高代表股票相对债券越便宜。
+      因利率中枢长期下移，固定阈值已失效，只看分位。图中虚线为当前区间 80%/20% 分位。
+    </div>
+    <div class="chart" id="c4"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>创业板 / 中证红利</h2><span class="idx">指标 6</span>
+      <span class="now" id="n10">—</span>
+    </div>
+    <div class="desc">
+      创业板指 ÷ 中证红利指数。比值走低 = 创业板相对红利变便宜（或资金在避险），走高 = 成长跑赢红利。
+      虚线为当前区间的 80%/20% 分位，分位越低说明创业板相对越便宜。
+    </div>
+    <div class="mini" id="ratioMini"></div>
+    <div class="chart" id="c15"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>头部沪深300ETF 规模占比</h2><span class="idx">指标 7</span>
+      <span class="now">当前 <b id="n5">—</b></span>
+    </div>
+    <div class="desc">
+      华泰柏瑞 510300、华夏 510330、嘉实 159919、易方达 510310 四只 ETF 净资产合计，占沪深300 流通市值的比例（折线）。
+      柱形为当季净申购份额，正值为净流入。占比有长期上行趋势，只有变化率才有交易含义。
+    </div>
+    <div class="chart" id="c5"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>ETF 放量监控</h2><span class="idx">指标 8</span>
+      <span class="now" id="n7">—</span>
+    </div>
+    <div class="desc">
+      取成交额前 50 的股票型 ETF（剔除货币、债券、商品）。<b>放量倍数</b> = 当日成交额 ÷ 前 20 日均额；
+      <b>分位</b> = 当日成交额在自身近 250 个交易日中的位置。放量本身不分好坏，要看它和涨跌的组合：
+      下跌放量多是承接或止损，上涨放量才是增量资金。
+    </div>
+    <div class="mini" id="etfMini"></div>
+    <table class="etf-tb" id="etfTable"></table>
+    <div class="chart" id="c8" style="height:240px"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>ETF 份额走势</h2><span class="idx">指标 9</span>
+      <span class="now" id="n9">—</span>
+    </div>
+    <div class="desc">
+      三个板块主要 ETF 的场内份额（亿份）。份额由「成交量 ÷ 换手率」从日线反推，与东财披露的总份额误差约 0.5%。
+      <b>份额增加代表净申购</b>（有新钱进来），减少代表赎回；价格涨而份额不增，说明只是存量博弈。
+    </div>
+    <div class="macro-grid">
+      <div><div class="m-title">沪深300<b id="s1">—</b></div><div class="chart" id="c12" style="height:185px"></div></div>
+      <div><div class="m-title">创业板<b id="s2">—</b></div><div class="chart" id="c13" style="height:185px"></div></div>
+      <div><div class="m-title">科创板<b id="s3">—</b></div><div class="chart" id="c14" style="height:185px"></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <h2>海外宏观</h2><span class="idx">指标 10</span>
+      <span class="now" id="n8">—</span>
+    </div>
+    <div class="desc">
+      美债 10 年期、布伦特原油、COMEX 黄金。美债利率决定外资的风险偏好与人民币资产的相对吸引力；
+      油价推通胀、金价反映避险与实际利率。三者同时走高，通常意味着「流动性收紧 + 地缘风险」的组合。
+    </div>
+    <div class="macro-grid">
+      <div><div class="m-title">美债 10 年<b id="m1">—</b></div><div class="chart" id="c9" style="height:170px"></div></div>
+      <div><div class="m-title">布伦特原油<b id="m2">—</b></div><div class="chart" id="c10" style="height:170px"></div></div>
+      <div><div class="m-title">COMEX 黄金<b id="m3">—</b></div><div class="chart" id="c11" style="height:170px"></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="font-size:15px;margin-bottom:10px">口径与已知近似</h2>
+    <table class="rules">
+      <tr><th>项目</th><th>定义与处理</th></tr>
+      <tr><td>样本范围</td><td>沪深两市全体 A 股，剔除北交所；停牌（成交额 0）不计入；上市不足 60 个交易日的新股不计入</td></tr>
+      <tr><td>TRIN</td><td>平盘家数计入分母：涨家数 ÷ (平盘 + 下跌)，再除以涨跌成交额之比；用成交额而非股数，避免低价股绑架指标</td></tr>
+      <tr><td>MCL</td><td>涨跌家数差的 19 日 EMA 减 39 日 EMA；前 39 个交易日 EMA 未收敛，不计入</td></tr>
+      <tr><td>红盘率</td><td>上涨家数 ÷ 当日有成交的全 A 家数（含平盘）</td></tr>
+      <tr><td>P20 / P60 / P250</td><td>收盘价站上 n 日均线的家数 ÷ 当日有足够历史数据的家数；均线含当日收盘价，故各自分母略有差异</td></tr>
+      <tr><td>涨停 / 跌停</td><td>按板块阈值判定：主板 ±9.8%、双创 ±19.5%。ST（±5%）与新股上市初期未单独处理，因此涨停家数会略偏低</td></tr>
+      <tr><td>PCR</td><td>沪深300股指期权（IO）与上证50股指期权（HO）全部合约的认沽成交量 ÷ 认购成交量，持仓量口径同理。数据来自中金所日行情 CSV</td></tr>
+      <tr><td>±2σ 轨道</td><td>成交量 PCR 的 120 日滚动均值 ± 2 倍标准差，随窗口滚动，用于判断当前读数是否偏离常态</td></tr>
+      <tr><td>ETF 分子</td><td>四只基金季报披露的期末净资产合计（亿元），与二级市场价格无关</td></tr>
+      <tr><td>ETF 分母</td><td>沪深300 流通市值，以最新成分为锚、按指数涨跌回推历史，属近似（未含成分调整与解禁）</td></tr>
+      <tr><td>股债利差</td><td>中证指数官方 PE（静态）与中债 10 年期国债到期收益率，均取当日或此前最近披露值</td></tr>
+      <tr><td>美债 / 原油 / 黄金</td><td>美债 10 年为东财 datacenter 的美国国债收益率（与中国 10Y 同源）；布伦特与 COMEX 黄金为新浪外盘期货日线（连续合约），16:00 取的是亚洲时段最新价，不是当日结算价</td></tr>
+      <tr><td>ETF 放量</td><td>成交额前 50 的股票型 ETF，放量倍数 = 当日成交额 ÷ 前 20 日均额；分位 = 当日成交额在自身近 250 个交易日中的位置</td></tr>
+      <tr><td>仓位参考</td><td>0.5 × 利差分位 + 0.5 × 情绪分；情绪分 = TRIN、PCR、MCL 三者分位的均值（TRIN 取 20 日均线分位以过滤单日噪音，MCL 取反向即低位=恐惧）。结果为 30%–90%，沪深300 跌破 200 日线时上限压至 60%</td></tr>
+    </table>
+    <div class="note" style="margin-top:14px">
+      <b>已知局限</b>：ETF 规模为季度披露，频率与其余四个指标不一致，因此不参与仓位打分，只作资金面参考；
+      日度规模从本系统上线日起累积。ETF 分母按指数回推，跨度越长误差越大。四个日频指标彼此相关，同时偏高只说明「同一个方向上有四份同源证据」，不是四个独立信号。
+    </div>
+  </section>
+
+  <footer>
+    数据源：中金所 · 中证指数 · 中债/东财 · 东财基金 · 新浪财经 · 腾讯行情 ｜
+    每个交易日 16:00 自动更新（<code style="font-size:11px">node scripts/fetch.mjs --daily</code>）
+  </footer>
+</div>
+
+<script src="data/indicators.js"></script>
+<script>
+(function(){
+  "use strict";
+  var D = window.IND_DATA;
+  if (!D) {
+    document.body.innerHTML = '<div style="padding:60px;text-align:center;font-family:sans-serif">' +
+      '未找到数据文件 data/indicators.js<br><br>请先运行 <code>node scripts/fetch.mjs</code></div>';
+    return;
+  }
+
+  var $ = function(id){ return document.getElementById(id); };
+  var fmt = function(v, n){ return (v === null || v === undefined || !isFinite(v)) ? "—" : Number(v).toFixed(n === undefined ? 2 : n); };
+  var ymd = function(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
+
+  var TRIN = D.trin || [], MCL = D.mcl || [], PCR = D.pcr || [], ERP = D.erp || [], ETFQ = (D.etf && D.etf.quarterly) || [], B = D.breadth || [];
+
+  /* ---------- 数学工具 ---------- */
+  function ma(arr, n){
+    var out = new Array(arr.length).fill(null), sum = 0, cnt = 0;
+    for (var i = 0; i < arr.length; i++){
+      if (isFinite(arr[i])) { sum += arr[i]; cnt++; }
+      if (i >= n && isFinite(arr[i-n])) { sum -= arr[i-n]; cnt--; }
+      if (i >= n-1 && cnt > 0) out[i] = sum / cnt;
+    }
+    return out;
+  }
+  function percentile(values, v){
+    var a = values.filter(function(x){ return isFinite(x); }).slice().sort(function(x,y){ return x-y; });
+    if (!a.length || !isFinite(v)) return NaN;
+    var lo = 0, hi = a.length;
+    while (lo < hi){ var m = (lo + hi) >> 1; if (a[m] < v) lo = m + 1; else hi = m; }
+    return a.length > 1 ? lo / (a.length - 1) * 100 : 50;
+  }
+  function pctBand(values, q){
+    var a = values.filter(function(x){ return isFinite(x); }).slice().sort(function(x,y){ return x-y; });
+    return a.length ? a[Math.min(a.length-1, Math.floor(a.length*q))] : NaN;
+  }
+  function tag(p){
+    if (!isFinite(p)) return "—";
+    if (p < 20) return "极低";
+    if (p < 40) return "偏低";
+    if (p < 60) return "中性";
+    if (p < 80) return "偏高";
+    return "极高";
+  }
+
+  /* ---------- KPI ---------- */
+  var trinSeries = TRIN.map(function(r){ return r.trin; });
+  var trinMa = ma(trinSeries, 20);
+  var trinMaValid = trinMa.filter(function(x){ return isFinite(x); });
+  var lastTrin = TRIN[TRIN.length-1] || {};
+  var trinMaNow = trinMa[trinMa.length-1];
+  var trinPct = percentile(trinMaValid, trinMaNow);      // 仅用于仓位打分
+  var trinPctRaw = percentile(trinSeries, lastTrin.trin); // 页面展示用当日值分位
+
+  var mclSeries = MCL.map(function(r){ return r.mcl; });
+  var lastMcl = MCL[MCL.length-1] || {};
+  var mclPct = percentile(mclSeries, lastMcl.mcl);
+
+  var pcrSeries = PCR.map(function(r){ return r.volPcr; });
+  var lastPcr = PCR[PCR.length-1] || {};
+  var pcrPct = percentile(pcrSeries, lastPcr.volPcr);
+  var HO = D.ho || [];
+  var hoLast = HO.length ? HO[HO.length-1].volPcr : NaN;
+
+  var erpSeries = ERP.map(function(r){ return r.erp; });
+  var lastErp = ERP[ERP.length-1] || {};
+  var erpPct = percentile(erpSeries, lastErp.erp);
+
+  var etfDaily = (D.etf && D.etf.daily) || [];
+  var etfNow = etfDaily.length ? etfDaily[etfDaily.length-1] : null;
+  var etfRatioNow = etfNow ? etfNow.ratio : (ETFQ[ETFQ.length-1] || {}).ratio;
+  var etfNavNow = etfNow ? etfNow.nav : (ETFQ[ETFQ.length-1] || {}).nav;
+  var etfPct = percentile(ETFQ.map(function(r){ return r.ratio; }), etfRatioNow);
+  var etfPrev = ETFQ.length > 1 ? ETFQ[ETFQ.length-2] : null;
+  var etfQoq = etfPrev && etfPrev.nav ? (etfNavNow / etfPrev.nav - 1) * 100 : NaN;
+
+  var closeMa200 = ma(ERP.map(function(r){ return r.close; }), 200);
+  var trendUp = lastErp.close >= closeMa200[closeMa200.length-1];
+
+  // 情绪分：三者都换算成「恐惧程度」，越高越恐惧
+  var fear = [trinPct, pcrPct, 100 - mclPct];
+  var fearScore = fear.reduce(function(s, v){ return s + (isFinite(v) ? v : 50); }, 0) / fear.length;
+  var score = 0.5 * (isFinite(erpPct) ? erpPct : 50) + 0.5 * fearScore;
+  var pos = 30 + score * 0.6;
+  var capped = false;
+  if (!trendUp && pos > 60) { pos = 60; capped = true; }
+
+  $("tradeDate").textContent = D.tradeDate || "—";
+  $("idxClose").textContent = fmt(D.hs300 && D.hs300.close, 2);
+  $("genAt").textContent = D.generatedAt ? new Date(D.generatedAt).toLocaleString("zh-CN", {hour12:false}) : "—";
+
+  var bLast = (D.breadth && D.breadth.length) ? D.breadth[D.breadth.length-1] : {};
+  var upAmtYi = (bLast.upAmt || 0) / 1e8, dnAmtYi = (bLast.downAmt || 0) / 1e8;
+  var upAmtShareNow = (upAmtYi + dnAmtYi) > 0 ? upAmtYi / (upAmtYi + dnAmtYi) * 100 : NaN;
+
+  $("k1v").innerHTML = fmt(lastTrin.trin, 3);
+  $("k1s").textContent = "涨额 " + fmt(upAmtYi, 0) + " 亿 · 涨额占比 " + fmt(upAmtShareNow, 1) + "% · 分位 " + fmt(trinPctRaw, 0) + "%";
+  $("k1b").style.width = Math.max(2, Math.min(100, trinPctRaw || 0)) + "%";
+
+  $("k2v").innerHTML = fmt(lastMcl.mcl, 0);
+  $("k2s").textContent = "累积 " + (lastMcl.sum >= 0 ? "+" : "") + fmt(lastMcl.sum, 0) + " · 分位 " + fmt(mclPct, 0) + "%";
+  $("k2b").style.width = Math.max(2, Math.min(100, mclPct || 0)) + "%";
+
+  $("k3v").innerHTML = fmt(lastPcr.volPcr, 2);
+  $("k3s").textContent = "持仓 " + fmt(lastPcr.oiPcr, 2) + " · 上证50 " + fmt(hoLast, 2) + " · 分位 " + fmt(pcrPct, 0) + "%";
+  $("k3b").style.width = Math.max(2, Math.min(100, pcrPct || 0)) + "%";
+
+  $("k4v").innerHTML = fmt(lastErp.erp, 2) + '<small>%</small>';
+  $("k4s").textContent = "PE " + fmt(lastErp.pe, 2) + (D.erpEst ? "(推算)" : "") + " · 10Y " + fmt(lastErp.y10, 2) + "% · 分位 " + fmt(erpPct, 0) + "%";
+  $("k4b").style.width = Math.max(2, Math.min(100, erpPct || 0)) + "%";
+
+  $("k5v").innerHTML = fmt(etfRatioNow, 2) + '<small>%</small>';
+  $("k5s").textContent = fmt(etfNavNow, 0) + " 亿 · 环比 " + (isFinite(etfQoq) ? (etfQoq >= 0 ? "+" : "") + fmt(etfQoq, 0) + "%" : "—") + " · 分位 " + fmt(etfPct, 0) + "%";
+  $("k5b").style.width = Math.max(2, Math.min(100, etfPct || 0)) + "%";
+
+  $("k6v").innerHTML = fmt(pos, 0) + '<small>%</small>';
+  $("k6s").textContent = "综合分 " + fmt(score, 0) + " · 趋势" + (trendUp ? "上方" : "下方") + (capped ? " · 已触发闸门" : "");
+  $("k6b").style.width = Math.max(2, Math.min(100, pos)) + "%";
+
+  /* ---------- ETF 放量 ---------- */
+  var EV = D.etfVolume || { list: [], agg: [] };
+  var evList = (EV.list || []).slice();
+  var evAgg = EV.agg || [];
+  var hotN = evList.filter(function(r){ return r.mult >= 1.5; }).length;
+  var medMult = (function(){
+    var a = evList.map(function(r){ return r.mult; }).filter(isFinite).sort(function(x,y){ return x-y; });
+    return a.length ? a[Math.floor(a.length/2)] : NaN;
+  })();
+  var sumAmt = evList.reduce(function(s, r){ return s + (isFinite(r.amount) ? r.amount : 0); }, 0);
+
+  $("n7").textContent = "前50合计 " + fmt(sumAmt, 0) + " 亿";
+  $("etfMini").innerHTML = [
+    miniItem("放量中位", fmt(medMult, 2) + "×"),
+    miniItem("≥1.5×", hotN + " 只", hotN >= 10 ? "var(--up)" : ""),
+    miniItem("≥2×", evList.filter(function(r){ return r.mult >= 2; }).length + " 只"),
+    miniItem("统计样本", evList.length + " 只")
+  ].join("");
+
+  (function buildEtfTable(){
+    var rows = evList.slice(0, 12).map(function(r){
+      var cls = r.pct > 0 ? "up" : (r.pct < 0 ? "down" : "flat");
+      var multCls = r.mult >= 2 ? "hot" : "";
+      return "<tr><td>" + r.name + "</td>" +
+        "<td><b>" + fmt(r.amount, 1) + "</b></td>" +
+        "<td>" + fmt(r.avg20, 1) + "</td>" +
+        "<td class='" + multCls + "'><b>" + fmt(r.mult, 2) + "×</b></td>" +
+        "<td>" + fmt(r.rank, 0) + "%</td>" +
+        "<td class='" + cls + "'>" + (r.pct >= 0 ? "+" : "") + fmt(r.pct, 2) + "%</td></tr>";
+    }).join("");
+    $("etfTable").innerHTML =
+      "<thead><tr><th>ETF</th><th>成交额（亿）</th><th>20日均（亿）</th><th>放量倍数</th><th>成交额分位</th><th>今日涨跌</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody>";
+  })();
+
+  /* ---------- 海外宏观即时读数 ---------- */
+  var U10 = D.us10y || [];
+  var BR = (D.macro && D.macro.brent) || [];
+  var GD = (D.macro && D.macro.gold) || [];
+  var u10 = U10.length ? U10[U10.length-1].y : NaN;
+  var br = BR.length ? BR[BR.length-1].c : NaN;
+  var gd = GD.length ? GD[GD.length-1].c : NaN;
+  $("m1").textContent = fmt(u10, 2) + "%";
+  $("m2").textContent = fmt(br, 1) + " 美元";
+  $("m3").textContent = fmt(gd, 0) + " 美元";
+  $("n8").textContent = "美债 " + fmt(u10, 2) + "% · 油 " + fmt(br, 0) + " · 金 " + fmt(gd, 0);
+
+  /* ---------- ETF 份额读数 ---------- */
+  var SHG = D.etfShares || [];
+  function groupTotal(g){
+    var m = {};
+    g.series.forEach(function(s){ s.data.forEach(function(p){ m[p.d] = (m[p.d] || 0) + p.v; }); });
+    return Object.keys(m).sort().map(function(d){ return { d: d, v: m[d] }; });
+  }
+  SHG.forEach(function(g, i){
+    var tot = groupTotal(g);
+    if (!tot.length) return;
+    var lastV = tot[tot.length - 1].v;
+    var base = tot[Math.max(0, tot.length - 21)].v;
+    var chg = lastV - base;
+    var lbl = fmt(lastV, 0) + " 亿份（20日 " + (chg >= 0 ? "+" : "") + fmt(chg, 0) + "）";
+    var el = $("s" + (i + 1));
+    if (el) el.textContent = lbl;
+    if (g.key === "gem") $("n9").textContent = "创业板合计 " + fmt(lastV, 0) + " 亿份";
+  });
+
+  $("n1").textContent = fmt(lastTrin.trin, 3);  $("n2").textContent = fmt(lastMcl.mcl, 0);
+  $("n3").textContent = fmt(lastPcr.volPcr, 2);
+  $("n4").textContent = fmt(lastErp.erp, 2) + "%";
+  $("n5").textContent = fmt(etfRatioNow, 2) + "%";
+
+  /* ---------- 创业板 / 红利 ---------- */
+  var RA = D.ratio || [];
+  var rLast = RA.length ? RA[RA.length - 1] : {};
+  var rSeries = RA.map(function(r){ return r.v; });
+  var rPct = percentile(rSeries, rLast.v);
+  $("n10").textContent = fmt(rLast.v, 3) + "（分位 " + fmt(rPct, 0) + "%）";
+  $("ratioMini").innerHTML = [
+    miniItem("创业板指", fmt(rLast.gem, 2)),
+    miniItem("中证红利", fmt(rLast.div, 2)),
+    miniItem("比值", fmt(rLast.v, 3)),
+    miniItem("历史分位", fmt(rPct, 0) + "%")
+  ].join("");
+
+  /* ---------- 市场宽度即时读数 ---------- */
+  var lb = B.length ? B[B.length-1] : {};
+  var rate = function(a, n){ return n ? a / n * 100 : NaN; };
+  var redRateNow = lb.up + lb.down + lb.flat ? lb.up / (lb.up + lb.down + lb.flat) * 100 : NaN;
+  var p20Now = rate(lb.a20, lb.n20), p60Now = rate(lb.a60, lb.n60), p250Now = rate(lb.a250, lb.n250);
+  $("n6").textContent = "红盘率 " + fmt(redRateNow, 1) + "%";
+
+  function miniItem(label, value, tone){
+    return '<span><i>' + label + '</i><b' + (tone ? ' style="color:' + tone + '"' : '') + '>' + value + '</b></span>';
+  }
+  $("mini").innerHTML = [
+    miniItem("红盘率", fmt(redRateNow, 1) + "%"),
+    miniItem("P20", fmt(p20Now, 1) + "%"),
+    miniItem("P60", fmt(p60Now, 1) + "%"),
+    miniItem("P250", fmt(p250Now, 1) + "%"),
+    miniItem("涨停", (lb.lu || 0) + " 家", "var(--up)"),
+    miniItem("跌停", (lb.ld || 0) + " 家", "var(--down)"),
+    miniItem("全市场", (lb.up + lb.down + lb.flat) + " 只")
+  ].join("");
+
+  /* ---------- TRIN 分项 ---------- */
+  var bTotal = (bLast.up || 0) + (bLast.down || 0) + (bLast.flat || 0);
+  $("trinMini").innerHTML = [
+    miniItem("上涨家数", (bLast.up || 0) + " 家", "var(--up)"),
+    miniItem("下跌家数", (bLast.down || 0) + " 家", "var(--down)"),
+    miniItem("平盘家数", (bLast.flat || 0) + " 家"),
+    miniItem("上涨家数占比", fmt(bTotal ? bLast.up / bTotal * 100 : NaN, 1) + "%"),
+    miniItem("上涨成交额", fmt(upAmtYi, 0) + " 亿"),
+    miniItem("下跌成交额", fmt(dnAmtYi, 0) + " 亿"),
+    miniItem("上涨成交额占比", fmt(upAmtShareNow, 1) + "%")
+  ].join("");
+
+  /* ---------- 图表 ---------- */
+  var AX = {
+    axisLine: { lineStyle: { color: "#d9dee7" } },
+    axisTick: { show: false },
+    axisLabel: { color: "#7b8391", fontSize: 11 },
+    splitLine: { lineStyle: { color: "#f0f2f5" } }
+  };
+  var TT = { backgroundColor: "rgba(20,23,31,.92)", borderWidth: 0, textStyle: { color: "#fff", fontSize: 12 }, padding: [8,10] };
+  var LG = { right: 10, top: 0, icon: "roundRect", itemWidth: 12, itemHeight: 3, textStyle: { color: "#6b7280", fontSize: 11 } };
+  var ML = function(name, val, color){ return {
+    yAxis: val, name: name, lineStyle: { color: color, type: "dashed", width: 1, opacity: .65 },
+    label: { position: "insideStartTop", color: "#6b7280", fontSize: 10, formatter: function(p){ return p.name; },
+             backgroundColor: "rgba(255,255,255,.86)", padding: [2,4], borderRadius: 3 } }; };
+
+  var charts = {};
+  function initChart(id){
+    var el = $(id);
+    if (!el) return null;
+    var c = echarts.init(el);
+    charts[id] = c;
+    return c;
+  }
+  var c1 = initChart("c1"), c2 = initChart("c2"), c3 = initChart("c3"), c4 = initChart("c4"), c5 = initChart("c5"), c6 = initChart("c6"), c7 = initChart("c7"), c8 = initChart("c8");
+  var c9 = initChart("c9"), c10 = initChart("c10"), c11 = initChart("c11");
+  var c12 = initChart("c12"), c13 = initChart("c13"), c14 = initChart("c14");
+  var c15 = initChart("c15");
+
+  function cutoff(range){
+    if (range === "all") return "0000-00-00";
+    var days = { "1y": 365, "3y": 1095 }[range] || 1095;
+    var d = new Date(D.tradeDate + "T00:00:00");
+    d.setDate(d.getDate() - days);
+    return ymd(d);
+  }
+
+  function render(range){
+    var lo = cutoff(range);
+
+    /* --- 1. TRIN --- */
+    var ti = TRIN.map(function(r,i){ return i; }).filter(function(i){ return TRIN[i].d >= lo; });
+    var tDates = ti.map(function(i){ return TRIN[i].d; });
+    var tRaw = ti.map(function(i){ return TRIN[i].trin; });
+    var tP80 = pctBand(tRaw, .8), tP20 = pctBand(tRaw, .2);
+
+    c1.setOption({
+      animationDuration: 400,
+      grid: { left: 52, right: 26, top: 34, bottom: 46 },
+      tooltip: Object.assign({ trigger: "axis", axisPointer: { type: "line", lineStyle: { color: "#c9cfda" } },
+        formatter: function(ps){
+          var i = ti[ps[0].dataIndex], r = TRIN[i];
+          return "<b>" + r.d + "</b><br>TRIN " + fmt(r.trin, 4) +
+                 "<br>涨 " + r.up + "　平 " + r.flat + "　跌 " + r.down;
+        }}, TT),
+      legend: Object.assign({ data: ["TRIN"] }, LG),
+      xAxis: Object.assign({ type: "category", data: tDates, boundaryGap: false }, AX),
+      yAxis: Object.assign({ type: "value", scale: true }, AX),
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: [
+        { name: "TRIN", type: "line", data: tRaw, symbol: "none",
+          lineStyle: { width: 1.4, color: "#1e5eff" }, itemStyle: { color: "#1e5eff" }, z: 3,
+          areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(30,94,255,.14)"},{offset:1,color:"rgba(30,94,255,0)"}]) },
+          markLine: { silent: true, symbol: "none", data: [ ML("P80 " + fmt(tP80,2), tP80, "#f97316"), ML("P20 " + fmt(tP20,2), tP20, "#0ea5e9") ] }
+        }
+      ]
+    }, true);
+
+    /* --- 2. MCL --- */
+    var mi = MCL.map(function(r,i){ return i; }).filter(function(i){ return MCL[i].d >= lo; });
+    var mDates = mi.map(function(i){ return MCL[i].d; });
+    var mVal = mi.map(function(i){ return MCL[i].mcl; });
+    var mP80 = pctBand(mVal, .8), mP20 = pctBand(mVal, .2);
+
+    c2.setOption({
+      animationDuration: 400,
+      grid: { left: 56, right: 26, top: 34, bottom: 46 },
+      tooltip: Object.assign({ trigger: "axis",
+        formatter: function(ps){
+          var i = mi[ps[0].dataIndex], r = MCL[i];
+          return "<b>" + r.d + "</b><br>MCL " + fmt(r.mcl, 1) + "<br>涨跌家数差 " + (r.ad > 0 ? "+" : "") + r.ad +
+                 "<br>累积指标 " + fmt(r.sum, 0);
+        }}, TT),
+      legend: Object.assign({ data: ["MCL"] }, LG),
+      xAxis: Object.assign({ type: "category", data: mDates, boundaryGap: false }, AX),
+      yAxis: Object.assign({ type: "value", scale: true }, AX),
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: [{
+        name: "MCL", type: "line", data: mVal, symbol: "none",
+        lineStyle: { width: 1.8, color: "#7c3aed" }, z: 3,
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(124,58,237,.16)"},{offset:1,color:"rgba(124,58,237,0)"}]) },
+        markLine: { silent: true, symbol: "none", data: [
+          { yAxis: 0, lineStyle: { color: "#9aa4b4", type: "solid", width: 1 },
+            label: { show: false } },
+          ML("P80 " + fmt(mP80, 0), mP80, "#f97316"),
+          ML("P20 " + fmt(mP20, 0), mP20, "#0ea5e9")
+        ] }
+      }]
+    }, true);
+
+    /* --- 3. PCR --- */
+    var pi = PCR.map(function(r,i){ return i; }).filter(function(i){ return PCR[i].d >= lo; });
+    var pDates = pi.map(function(i){ return PCR[i].d; });
+    var pVol = pi.map(function(i){ return PCR[i].volPcr; });
+    var pOi = pi.map(function(i){ return PCR[i].oiPcr; });
+
+    // 上证50股指期权 PCR（中金所，历史完整）
+    var hoMap = {};
+    (D.ho || []).forEach(function(r){ hoMap[r.d] = r.volPcr; });
+    var hoVol = pDates.map(function(d){ return hoMap[d] === undefined ? null : hoMap[d]; });
+
+    // 成交量 PCR 的滚动 ±2σ 轨道（120 日窗口）
+    function sigmaBand(arr, win, k){
+      var up = new Array(arr.length).fill(null), dn = new Array(arr.length).fill(null);
+      for (var i = win - 1; i < arr.length; i++){
+        var s = 0, s2 = 0, n = 0;
+        for (var j = i - win + 1; j <= i; j++){
+          var v = arr[j];
+          if (v !== null && isFinite(v)) { s += v; s2 += v * v; n++; }
+        }
+        if (!n) continue;
+        var m = s / n, sd = Math.sqrt(Math.max(0, s2 / n - m * m));
+        up[i] = +(m + k * sd).toFixed(3);
+        dn[i] = +(m - k * sd).toFixed(3);
+      }
+      return { up: up, dn: dn };
+    }
+    var band = sigmaBand(PCR.map(function(r){ return r.volPcr; }), 120, 2);
+    var bandUp = pi.map(function(i){ return band.up[i]; });
+    var bandDn = pi.map(function(i){ return band.dn[i]; });
+
+    c3.setOption({
+      animationDuration: 400,
+      grid: { left: 52, right: 26, top: 34, bottom: 46 },
+      tooltip: Object.assign({ trigger: "axis",
+        formatter: function(ps){
+          var i = pi[ps[0].dataIndex], r = PCR[i];
+          var s50 = hoMap[r.d] === undefined ? "—" : fmt(hoMap[r.d], 3);
+          return "<b>" + r.d + "</b><br>沪深300 成交量 PCR " + fmt(r.volPcr, 3) +
+                 "<br>沪深300 持仓量 PCR " + fmt(r.oiPcr, 3) +
+                 "<br>上证50 期权 PCR " + s50 +
+                 "<br>±2σ 轨道 " + fmt(band.dn[i], 2) + " ~ " + fmt(band.up[i], 2);
+        }}, TT),
+      legend: Object.assign({ data: ["成交量 PCR（沪深300）", "持仓量 PCR（沪深300）", "PCR（上证50）", "上轨 +2σ", "下轨 −2σ"] }, LG),
+      xAxis: Object.assign({ type: "category", data: pDates, boundaryGap: false }, AX),
+      yAxis: Object.assign({ type: "value", scale: true }, AX),
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: [
+        { name: "上轨 +2σ", type: "line", data: bandUp, symbol: "none", z: 1,
+          lineStyle: { width: 1, color: "#e0282e", type: "dashed", opacity: .45 } },
+        { name: "下轨 −2σ", type: "line", data: bandDn, symbol: "none", z: 1,
+          lineStyle: { width: 1, color: "#0a9d58", type: "dashed", opacity: .45 } },
+        { name: "持仓量 PCR（沪深300）", type: "line", data: pOi, symbol: "none", lineStyle: { width: 1.4, color: "#94a3b8", type: "dashed" }, z: 2 },
+        { name: "成交量 PCR（沪深300）", type: "line", data: pVol, symbol: "none", lineStyle: { width: 1.8, color: "#0ea5e9" }, z: 3,
+          markLine: { silent: true, symbol: "none", data: [
+            { yAxis: 1, lineStyle: { color: "#c9cfda", type: "solid", width: 1 },
+              label: { position: "insideStartTop", color: "#9aa1ad", fontSize: 10, formatter: "1.0" } }
+          ] } },
+        { name: "PCR（上证50）", type: "line", data: hoVol, symbol: "none",
+          lineStyle: { width: 1.6, color: "#f97316" }, itemStyle: { color: "#f97316" }, connectNulls: false, z: 4 }
+      ]
+    }, true);
+
+    /* --- 6. 市场宽度 --- */
+    var bi = B.map(function(r,i){ return i; }).filter(function(i){ return B[i].d >= lo; });
+    var bDates = bi.map(function(i){ return B[i].d; });
+    var redRate = bi.map(function(i){ var r = B[i]; var n = r.up + r.down + r.flat; return n ? +(r.up / n * 100).toFixed(2) : null; });
+    var p20 = bi.map(function(i){ return B[i].n20 ? +(B[i].a20 / B[i].n20 * 100).toFixed(2) : null; });
+    var p60 = bi.map(function(i){ return B[i].n60 ? +(B[i].a60 / B[i].n60 * 100).toFixed(2) : null; });
+    var p250 = bi.map(function(i){ return B[i].n250 ? +(B[i].a250 / B[i].n250 * 100).toFixed(2) : null; });
+
+    // 日频宽度波动极大，实线用 10 日均线，浅色细线保留当日实际值
+    function smooth(arr, n){
+      var out = new Array(arr.length).fill(null), sum = 0, cnt = 0;
+      for (var i = 0; i < arr.length; i++){
+        var v = arr[i];
+        if (v !== null && isFinite(v)) { sum += v; cnt++; }
+        if (i >= n){ var o = arr[i-n]; if (o !== null && isFinite(o)) { sum -= o; cnt--; } }
+        if (i >= n-1 && cnt > 0) out[i] = +(sum / cnt).toFixed(2);
+      }
+      return out;
+    }
+
+    var BW = [
+      { key: "红盘率", raw: redRate, color: "#f97316" },
+      { key: "P20", raw: p20, color: "#1e5eff" },
+      { key: "P60", raw: p60, color: "#7c3aed" },
+      { key: "P250", raw: p250, color: "#94a3b8" }
+    ];
+    var bwSeries = [];
+    BW.forEach(function (s) {
+      bwSeries.push({ name: s.key + " 原始", type: "line", data: s.raw, symbol: "none",
+        lineStyle: { width: 0.6, color: s.color, opacity: .28 }, z: 1, silent: true });
+    });
+    BW.forEach(function (s) {
+      bwSeries.push({ name: s.key, type: "line", data: smooth(s.raw, 10), symbol: "none",
+        lineStyle: { width: 1.9, color: s.color }, itemStyle: { color: s.color }, z: 3 });
+    });
+
+    c6.setOption({
+      animationDuration: 400,
+      grid: { left: 48, right: 26, top: 34, bottom: 46 },
+      tooltip: Object.assign({ trigger: "axis",
+        formatter: function(ps){
+          var i = bi[ps[0].dataIndex], r = B[i];
+          var n = r.up + r.down + r.flat;
+          return "<b>" + r.d + "</b><br>红盘率 " + fmt(r.up / n * 100, 1) + "%（涨 " + r.up + " / 跌 " + r.down + " / 平 " + r.flat + "）" +
+                 "<br>P20 " + fmt(r.a20 / r.n20 * 100, 1) + "%　P60 " + fmt(r.a60 / r.n60 * 100, 1) + "%　P250 " + fmt(r.a250 / r.n250 * 100, 1) + "%" +
+                 "<br>涨停 " + (r.lu || 0) + " 家　跌停 " + (r.ld || 0) + " 家";
+        }}, TT),
+      legend: Object.assign({ data: ["红盘率", "P20", "P60", "P250"] }, LG),
+      xAxis: Object.assign({ type: "category", data: bDates, boundaryGap: false }, AX),
+      yAxis: { type: "value", min: 0, max: 100, axisLine: AX.axisLine, axisTick: AX.axisTick, splitLine: AX.splitLine,
+               axisLabel: { color: "#7b8391", fontSize: 11, formatter: "{value}%" } },
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: bwSeries
+    }, true);
+
+    var luData = bi.map(function(i){ return B[i].lu || 0; });
+    var ldData = bi.map(function(i){ return B[i].ld || 0; });
+    c7.setOption({
+      animationDuration: 400,
+      grid: { left: 48, right: 26, top: 26, bottom: 34 },
+      tooltip: Object.assign({ trigger: "axis", axisPointer: { type: "shadow" },
+        formatter: function(ps){
+          var i = bi[ps[0].dataIndex], r = B[i];
+          return "<b>" + r.d + "</b><br>涨停 " + (r.lu || 0) + " 家<br>跌停 " + (r.ld || 0) + " 家";
+        }}, TT),
+      legend: Object.assign({ data: ["涨停", "跌停"] }, LG),
+      xAxis: Object.assign({ type: "category", data: bDates, axisLabel: { color: "#7b8391", fontSize: 10, formatter: function(v){ return v.slice(2,7); } } }, { axisLine: AX.axisLine, axisTick: AX.axisTick }),
+      yAxis: Object.assign({ type: "value" }, { axisLine: AX.axisLine, axisTick: AX.axisTick, splitLine: AX.splitLine, axisLabel: { color: "#7b8391", fontSize: 10 } }),
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: [
+        { name: "涨停", type: "bar", data: luData, barMaxWidth: 3, itemStyle: { color: "rgba(224,40,46,.7)" }, z: 2 },
+        { name: "跌停", type: "bar", data: ldData, barMaxWidth: 3, itemStyle: { color: "rgba(10,157,88,.7)" }, z: 2 }
+      ]
+    }, true);
+
+    /* --- 4. 股债利差 --- */
+    var ei = ERP.map(function(r,i){ return i; }).filter(function(i){ return ERP[i].d >= lo; });
+    var eDates = ei.map(function(i){ return ERP[i].d; });
+    var eErp = ei.map(function(i){ return ERP[i].erp; });
+    var eY10 = ei.map(function(i){ return ERP[i].y10; });
+    var eP80 = pctBand(eErp, .8), eP20 = pctBand(eErp, .2);
+
+    c4.setOption({
+      animationDuration: 400,
+      grid: { left: 52, right: 58, top: 34, bottom: 46 },
+      tooltip: Object.assign({ trigger: "axis",
+        formatter: function(ps){
+          var i = ei[ps[0].dataIndex], r = ERP[i];
+          return "<b>" + r.d + "</b><br>股债利差 " + fmt(r.erp,2) + "%<br>沪深300 PE " + fmt(r.pe,2) +
+                 "<br>10年国债 " + fmt(r.y10,2) + "%";
+        }}, TT),
+      legend: Object.assign({ data: ["股债利差", "10年期国债（右轴）"] }, LG),
+      xAxis: Object.assign({ type: "category", data: eDates, boundaryGap: false }, AX),
+      yAxis: [ Object.assign({ type: "value", scale: true }, AX),
+               Object.assign({ type: "value", scale: true, splitLine: { show: false } }, AX) ],
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: [
+        { name: "股债利差", type: "line", data: eErp, symbol: "none", lineStyle: { width: 2, color: "#f97316" }, z: 3,
+          areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(249,115,22,.16)"},{offset:1,color:"rgba(249,115,22,0)"}]) },
+          markLine: { silent: true, symbol: "none", data: [ ML("P80 " + fmt(eP80,2), eP80, "#f97316"), ML("P20 " + fmt(eP20,2), eP20, "#0ea5e9") ] } },
+        { name: "10年期国债（右轴）", type: "line", yAxisIndex: 1, data: eY10, symbol: "none",
+          lineStyle: { width: 1.4, color: "#9aa4b4", type: "dashed" }, z: 2 }
+      ]
+    }, true);
+
+    /* --- 6. 创业板 / 中证红利 --- */
+    var ri = RA.map(function(r,i){ return i; }).filter(function(i){ return RA[i].d >= lo; });
+    var rDates = ri.map(function(i){ return RA[i].d; });
+    var rVal = ri.map(function(i){ return RA[i].v; });
+    var rP80 = pctBand(rSeries, .8), rP20 = pctBand(rSeries, .2);
+
+    c15.setOption({
+      animationDuration: 400,
+      grid: { left: 52, right: 26, top: 30, bottom: 44 },
+      tooltip: Object.assign({ trigger: "axis",
+        formatter: function(ps){
+          var r = RA[ri[ps[0].dataIndex]];
+          return "<b>" + r.d + "</b><br>比值 " + fmt(r.v, 4) +
+                 "<br>创业板指 " + fmt(r.gem, 2) + "　中证红利 " + fmt(r.div, 2);
+        }}, TT),
+      legend: Object.assign({ data: ["创业板 / 中证红利"] }, LG),
+      xAxis: Object.assign({ type: "category", data: rDates, boundaryGap: false }, AX),
+      yAxis: Object.assign({ type: "value", scale: true }, AX),
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: [{
+        name: "创业板 / 中证红利", type: "line", data: rVal, symbol: "none",
+        lineStyle: { width: 1.8, color: "#e0282e" }, itemStyle: { color: "#e0282e" }, z: 3,
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(224,40,46,.12)"},{offset:1,color:"rgba(224,40,46,0)"}]) },
+        markLine: { silent: true, symbol: "none", data: [
+          ML("P80 " + fmt(rP80, 3), rP80, "#f97316"),
+          ML("P20 " + fmt(rP20, 3), rP20, "#0ea5e9")
+        ] }
+      }]
+    }, true);
+
+    /* --- 7. ETF --- */
+    var etfAll = ETFQ.slice();
+    if (etfNow && etfAll.length && etfNow.d > etfAll[etfAll.length-1].d) {
+      etfAll = etfAll.concat([{ d: etfNow.d, ratio: etfNow.ratio, nav: etfNow.nav, cap: etfNow.cap, netBuy: null, live: true }]);
+    }
+    var qi = etfAll.map(function(r,i){ return i; }).filter(function(i){ return etfAll[i].d >= lo; });
+    var qDates = qi.map(function(i){ return etfAll[i].d; });
+    var qRatio = qi.map(function(i){
+      var r = etfAll[i];
+      return { value: r.ratio, symbolSize: r.live ? 8 : 4, itemStyle: r.live ? { color: "#e0282e", borderColor: "#fff", borderWidth: 2 } : undefined };
+    });
+    var qFlow = qi.map(function(i){
+      var r = etfAll[i];
+      if (r.netBuy === null || r.netBuy === undefined) return null;
+      return { value: r.netBuy, itemStyle: { color: r.netBuy >= 0 ? "rgba(224,40,46,.55)" : "rgba(10,157,88,.55)", borderRadius: [3,3,0,0] } };
+    });
+
+    c5.setOption({
+      animationDuration: 400,
+      grid: { left: 52, right: 58, top: 34, bottom: 46 },
+      tooltip: Object.assign({ trigger: "axis", axisPointer: { type: "shadow" },
+        formatter: function(ps){
+          var i = qi[ps[0].dataIndex], r = etfAll[i];
+          var flow = (r.netBuy === null || r.netBuy === undefined) ? "—（当月未披露）" : fmt(r.netBuy,1) + " 亿份";
+          return "<b>" + r.d + (r.live ? "（当月实时）" : "") + "</b><br>规模占比 " + fmt(r.ratio,2) + "%<br>净资产 " +
+                 fmt(r.nav,0) + " 亿<br>净申购 " + flow + "<br>沪深300流通市值 " + fmt(r.cap/1e4,1) + " 万亿";
+        }}, TT),
+      legend: Object.assign({ data: ["规模占比", "净申购（右轴）"] }, LG),
+      xAxis: Object.assign({ type: "category", data: qDates, axisLabel: { color: "#7b8391", fontSize: 10, formatter: function(v){ return v.slice(2,7); } } }, AX),
+      yAxis: [ Object.assign({ type: "value", scale: true }, AX),
+               Object.assign({ type: "value", scale: true, splitLine: { show: false } }, AX) ],
+      series: [
+        { name: "净申购（右轴）", type: "bar", yAxisIndex: 1, data: qFlow, barMaxWidth: 16, z: 1 },
+        { name: "规模占比", type: "line", data: qRatio, symbol: "circle", symbolSize: 4,
+          lineStyle: { width: 2.2, color: "#1e5eff" }, itemStyle: { color: "#1e5eff" }, z: 3,
+          areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(30,94,255,.12)"},{offset:1,color:"rgba(30,94,255,0)"}]) } }
+      ]
+    }, true);
+
+    /* --- 7. ETF 合计成交额 --- */
+    var ai = evAgg.map(function(r,i){ return i; }).filter(function(i){ return evAgg[i].d >= lo; });
+    var aDates = ai.map(function(i){ return evAgg[i].d; });
+    var aAmt = ai.map(function(i){ return evAgg[i].amt; });
+    var aMa = ma(aAmt, 20);
+    var aSorted = aAmt.filter(isFinite).slice().sort(function(x,y){ return x-y; });
+    var aP80 = aSorted[Math.floor(aSorted.length*0.8)];
+
+    c8.setOption({
+      animationDuration: 400,
+      grid: { left: 56, right: 26, top: 30, bottom: 40 },
+      tooltip: Object.assign({ trigger: "axis",
+        formatter: function(ps){
+          var i = ai[ps[0].dataIndex];
+          return "<b>" + evAgg[i].d + "</b><br>前50合计成交额 " + fmt(evAgg[i].amt, 0) + " 亿";
+        }}, TT),
+      legend: Object.assign({ data: ["合计成交额", "20日均额"] }, LG),
+      xAxis: Object.assign({ type: "category", data: aDates, boundaryGap: false }, AX),
+      yAxis: Object.assign({ type: "value", scale: true, axisLabel: { color: "#7b8391", fontSize: 11, formatter: "{value}亿" } },
+        { axisLine: AX.axisLine, axisTick: AX.axisTick, splitLine: AX.splitLine }),
+      dataZoom: [{ type: "inside", throttle: 60 }],
+      series: [
+        { name: "合计成交额", type: "line", data: aAmt, symbol: "none", lineStyle: { width: 1.2, color: "#0ea5e9" }, itemStyle: { color: "#0ea5e9" }, z: 2,
+          areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(14,165,233,.18)"},{offset:1,color:"rgba(14,165,233,0)"}]) },
+          markLine: { silent: true, symbol: "none", data: [
+            { yAxis: aP80, name: "P80 " + fmt(aP80,0), lineStyle: { color: "#f97316", type: "dashed", width: 1, opacity: .6 },
+              label: { position: "insideStartTop", color: "#6b7280", fontSize: 10, formatter: function(p){ return p.name; },
+                       backgroundColor: "rgba(255,255,255,.86)", padding: [2,4], borderRadius: 3 } }
+          ] } },
+        { name: "20日均额", type: "line", data: aMa, symbol: "none", lineStyle: { width: 1.6, color: "#7c3aed", type: "dashed" }, itemStyle: { color: "#7c3aed" }, z: 3 }
+      ]
+    }, true);
+
+    /* --- 8. 海外宏观 --- */
+    var MACRO = [
+      { el: c9, rows: U10, key: "y", color: "#1e5eff", unit: "%" },
+      { el: c10, rows: BR, key: "c", color: "#f97316", unit: "" },
+      { el: c11, rows: GD, key: "c", color: "#eab308", unit: "" }
+    ];
+    MACRO.forEach(function(m){
+      var idx = m.rows.map(function(r,i){ return i; }).filter(function(i){ return m.rows[i].d >= lo; });
+      var dates = idx.map(function(i){ return m.rows[i].d; });
+      var vals = idx.map(function(i){ return m.rows[i][m.key]; });
+      m.el.setOption({
+        animationDuration: 400,
+        grid: { left: 46, right: 12, top: 10, bottom: 22 },
+        tooltip: Object.assign({ trigger: "axis",
+          formatter: function(ps){ return ps[0].axisValue + "<br>" + fmt(ps[0].value, 2) + m.unit; } }, TT),
+        xAxis: { type: "category", data: dates, boundaryGap: false,
+          axisLine: { lineStyle: { color: "#e6e9ef" } }, axisTick: { show: false },
+          axisLabel: { color: "#8a93a3", fontSize: 9, formatter: function(v){ return v.slice(2, 7); } } },
+        yAxis: { type: "value", scale: true, axisLine: { show: false }, axisTick: { show: false },
+          splitLine: { lineStyle: { color: "#f2f4f7" } }, axisLabel: { color: "#8a93a3", fontSize: 9 } },
+        series: [{ type: "line", data: vals, symbol: "none", z: 2,
+          lineStyle: { width: 1.5, color: m.color }, itemStyle: { color: m.color },
+          areaStyle: { color: m.color + "1f" } }]
+      }, true);
+    });
+
+    /* --- 9. ETF 份额 --- */
+    var SHCOLOR = ["#1e5eff", "#f97316", "#7c3aed", "#0ea5e9"];
+    [c12, c13, c14].forEach(function(chart, gi){
+      var g = SHG[gi];
+      if (!g || !g.series.length) return;
+      var dates = [], seen = {};
+      g.series.forEach(function(s){ s.data.forEach(function(p){ if (!seen[p.d]) { seen[p.d] = 1; dates.push(p.d); } }); });
+      dates.sort();
+      var keep = dates.filter(function(d){ return d >= lo; });
+      if (!keep.length) return;
+      var pos = {};
+      keep.forEach(function(d, i){ pos[d] = i; });
+      var series = g.series.map(function(s, k){
+        var arr = new Array(keep.length).fill(null);
+        s.data.forEach(function(p){ if (pos[p.d] !== undefined) arr[pos[p.d]] = p.v; });
+        return { name: s.code, type: "line", data: arr, symbol: "none",
+          lineStyle: { width: 1.4, color: SHCOLOR[k % 4] }, itemStyle: { color: SHCOLOR[k % 4] } };
+      });
+      chart.setOption({
+        animationDuration: 400,
+        grid: { left: 46, right: 10, top: 26, bottom: 22 },
+        tooltip: Object.assign({ trigger: "axis",
+          formatter: function(ps){
+            var head = "<b>" + ps[0].axisValue + "</b>";
+            ps.forEach(function(p){ head += "<br>" + p.marker + p.seriesName + " " + fmt(p.value, 1) + " 亿份"; });
+            return head;
+          }}, TT),
+        legend: { data: g.series.map(function(s){ return s.code; }), top: 0, right: 0,
+          icon: "roundRect", itemWidth: 9, itemHeight: 3, textStyle: { color: "#6b7280", fontSize: 10 } },
+        xAxis: { type: "category", data: keep, boundaryGap: false,
+          axisLine: { lineStyle: { color: "#e6e9ef" } }, axisTick: { show: false },
+          axisLabel: { color: "#8a93a3", fontSize: 9, formatter: function(v){ return v.slice(2, 7); } } },
+        yAxis: { type: "value", scale: true, axisLine: { show: false }, axisTick: { show: false },
+          splitLine: { lineStyle: { color: "#f2f4f7" } }, axisLabel: { color: "#8a93a3", fontSize: 9 } },
+        series: series
+      }, true);
+    });
+  }
+
+  document.getElementById("seg").addEventListener("click", function(e){
+    var b = e.target.closest("button");
+    if (!b) return;
+    [].forEach.call(this.querySelectorAll("button"), function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    render(b.dataset.r);
+  });
+
+  render("3y");
+  window.addEventListener("resize", function(){
+    Object.keys(charts).forEach(function(k){ charts[k] && charts[k].resize(); });
+  });
+})();
+</script>
+</body>
+</html>
