@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LLM 客户端（OpenAI 兼容协议）
  *
  * 支持任何 /v1/chat/completions 形态的服务：
@@ -15,13 +15,14 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const CFG_FILE = path.join(path.resolve(process.cwd()), "config", "llm.json");
+const CFG_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "config", "llm.json");
 
 function loadConfig() {
   let file = {};
   try {
-    if (fs.existsSync(CFG_FILE)) file = JSON.parse(fs.readFileSync(CFG_FILE, "utf8"));
+    if (fs.existsSync(CFG_FILE)) file = JSON.parse(fs.readFileSync(CFG_FILE, "utf8").replace(/^\uFEFF/, ""));
   } catch { /* 配置坏了就当没有 */ }
 
   const baseUrl = process.env.LLM_BASE_URL || file.baseUrl || "";
@@ -34,7 +35,8 @@ function loadConfig() {
   if (!apiKey && !isLocal) return null;
 
   return {
-    baseUrl: baseUrl.replace(/\/+$/, ""),
+    // 容忍把完整的 /chat/completions 也写进 baseUrl 的情况
+    baseUrl: baseUrl.replace(/\/+$/, "").replace(/\/chat\/completions$/, ""),
     apiKey,
     model,
     temperature: file.temperature ?? 0.3,
